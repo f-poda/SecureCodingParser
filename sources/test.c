@@ -56,6 +56,38 @@
 #include <string.h>
 #include <stdint.h>
 #include <endian.h>
+#include <stdarg.h>
+
+
+
+// local_file_header
+#define LFH_SIGNATURE 0x04034b50
+typedef struct {
+    uint32_t signature;
+    uint16_t version;
+    uint16_t flags;
+    uint16_t compression;
+    uint16_t mod_time;
+    uint16_t mod_date;
+    uint32_t CRC;
+    uint32_t compressed_size;
+    uint32_t uncompressed_size;
+    uint16_t filename_len;
+    uint16_t extra_field_len;
+
+    //variable length
+    uint8_t* filename;
+    uint8_t* extra_field;
+} LFH;
+
+// node for doubly linked list of local file headers
+typedef struct LFH_n  {
+    LFH*          val;
+    struct LFH_n* next;
+    struct LFH_n* prev;
+} LFH_node;
+
+
 
 
 // end of central directory record
@@ -66,21 +98,135 @@ typedef struct {
 
 // whole pk zip file
 typedef struct {
-    CDR_end CDR_end; //
+    LFH_node* LFH_list;
+    CDR_end CDR_end;
 } pk_zip;
 
+////////////////////////////////////////////////////////////////////////////////
 
-int main(int argc, char const *argv[]) {
+void die_with_message(const char *format, ...)
+{
+    va_list args;
+    va_start(args, format);
+
+    vfprintf(stderr, format, args);
+
+    va_end(args);
+}
+
+void die_with_error(char* str) {
+    perror(str);
+    exit(-1);
+}
+
+void sure_fread(void* target, size_t size, FILE *stream) {
+    size_t read = fread(target, 1, size, stream);
+    if (read != size) {
+        die_with_message("Error reading file, read %u of %u bytes\n", read, size);
+    }
+}
+
+void parse_LFH(FILE* file) {
+    // from version to extra_field_len there are 26 bytes
+    uint8_t bytes[26];
+    sure_fread(bytes, sizeof(bytes), file);
+
+    LFH* lfh = (LFH*) malloc(sizeof(LFH));
+    // TODO check success
+
+    lfh->signature = LFH_SIGNATURE;
+    lfh->version = *(uint16_t *)bytes;
+    lfh->flags = *(uint16_t *)(bytes+2);
+    lfh->compression = *(uint16_t *)(bytes+4);
+    lfh->mod_time = *(uint16_t *)(bytes+6);
+    lfh->mod_date = *(uint16_t *)(bytes+8);
+    lfh->CRC = *(uint32_t *)(bytes+10);
+    lfh->compressed_size = *(uint32_t *)(bytes+14);
+    lfh->uncompressed_size = *(uint32_t *)(bytes+18);
+    lfh->filename_len = *(uint16_t *)(bytes+22);
+    lfh->extra_field_len = *(uint16_t *)(bytes+24);
+
+    lfh->filename = (uint8_t*) malloc(lfh->filename_len);
+    // TODO check success
+    sure_fread(lfh->filename, lfh->filename_len, file);
+
+    lfh->extra_field = (uint8_t*) malloc(lfh->extra_field_len);
+    // TODO check success
+    sure_fread(lfh->extra_field, lfh->extra_field_len, file);
+
+    // temporary debug printf
+    printf("lfh->signature %08x\n",lfh->signature);
+    printf("lfh->version %08x\n",lfh->version);
+    printf("lfh->flags %08x\n",lfh->flags);
+    printf("lfh->compression %08x\n",lfh->compression);
+    printf("lfh->mod_time %08x\n",lfh->mod_time);
+    printf("lfh->mod_date %08x\n",lfh->mod_date);
+    printf("lfh->CRC %08x\n",lfh->CRC);
+    printf("lfh->compressed_size %08x\n",lfh->compressed_size);
+    printf("lfh->uncompressed_size %08x\n",lfh->uncompressed_size);
+    printf("lfh->filename_len %08x\n",lfh->filename_len);
+    printf("lfh->extra_field_len %08x\n",lfh->extra_field_len);
+
+    printf("lfh->filename %*s\n",lfh->filename_len, lfh->filename);
+    // printf("lfh->extra_field %*s\n",lfh->extra_field_len, lfh->extra_field);
+}
+
+/*
+try to parse a block and add it to the current pk_zip structure.
+
+If EOF is encountered unexpectedly, exit with error.
+return 1 when EOF is encountered at the beginning, else return 1
+*/
+int parse_block(FILE* file, pk_zip* zip) {
+
+    // read 4 bytes for the first signature and recognize the block typez
+    uint32_t signature;
+    fread(&signature, sizeof(signature), 1, file);
+    // TODO check the amount read
+
+    switch(signature) {
+        case LFH_SIGNATURE:
+            parse_LFH(file);
+        break;
+
+        default:
+            die_with_message("Found unknown signature 0x%08x at offset %08x\n", signature, ftell(file)-4);
+    }
+
+    return 1;
+}
+
+void parse_file(char* path_to_file) {
+    FILE*  file;
+    pk_zip* zip = (pk_zip*) malloc(sizeof(pk_zip));
+    // TODO check success
+    // TODO initialize main structure
+
+    file = fopen(path_to_file, "rb");
+    if (!file) die_with_error("Could not open file");
+    // TODO check that file is a normal file, not a directory or socket or pipe or ...
+
+    int end = 0;
+    while(!end) {
+        end = parse_block(file, zip);
+    }
+
+    fclose(file);
+
+    // TODO free(pk_zip);
+}
+
+int main(int argc, char* argv[]) {
 
     if (argc < 2) {
         // get executable name from argv[0] or use default if absent
-        char const *self_name = "zipinfo";
+        char* self_name = "zipinfo";
         if (argc > 0) self_name = argv[0];
 
         printf("Usage: %s path_to_file\n", self_name);
         exit(0);
     }
 
-    // do stuff
+    parse_file(argv[1]);
     return 0;
 }
