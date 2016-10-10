@@ -145,6 +145,7 @@ void die_with_message(const char *format, ...)
     vfprintf(stderr, format, args);
 
     va_end(args);
+    exit(-1);
 }
 
 void die_with_error(char* str) {
