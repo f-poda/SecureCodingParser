@@ -206,17 +206,17 @@ void parse_LFH(FILE* file) {
 
     LFH* lfh = (LFH*) sure_malloc(sizeof(LFH));
 
-    lfh->signature = LFH_SIGNATURE;
-    lfh->version = *(uint16_t *)bytes;
-    lfh->flags = *(uint16_t *)(bytes+2);
-    lfh->compression = *(uint16_t *)(bytes+4);
-    lfh->mod_time = *(uint16_t *)(bytes+6);
-    lfh->mod_date = *(uint16_t *)(bytes+8);
-    lfh->CRC = *(uint32_t *)(bytes+10);
-    lfh->compressed_size = *(uint32_t *)(bytes+14);
+    lfh->signature         = LFH_SIGNATURE;
+    lfh->version           = *(uint16_t *)bytes;
+    lfh->flags             = *(uint16_t *)(bytes+2);
+    lfh->compression       = *(uint16_t *)(bytes+4);
+    lfh->mod_time          = *(uint16_t *)(bytes+6);
+    lfh->mod_date          = *(uint16_t *)(bytes+8);
+    lfh->CRC               = *(uint32_t *)(bytes+10);
+    lfh->compressed_size   = *(uint32_t *)(bytes+14);
     lfh->uncompressed_size = *(uint32_t *)(bytes+18);
-    lfh->filename_len = *(uint16_t *)(bytes+22);
-    lfh->extra_field_len = *(uint16_t *)(bytes+24);
+    lfh->filename_len      = *(uint16_t *)(bytes+22);
+    lfh->extra_field_len   = *(uint16_t *)(bytes+24);
 
     lfh->filename = (uint8_t*) sure_malloc(lfh->filename_len);
     sure_fread(lfh->filename, lfh->filename_len, file);
@@ -229,7 +229,6 @@ void parse_LFH(FILE* file) {
     // read compressed data
     lfh->compressed_data = (uint8_t*) sure_malloc(lfh->compressed_size);
     sure_fread(lfh->compressed_data, lfh->compressed_size, file);
-
 
 
     // temporary debug printf
@@ -255,6 +254,33 @@ void parse_LFH(FILE* file) {
     print_hex_dump(stdout, lfh->compressed_data, lfh->compressed_size);
 }
 
+
+void parse_CDH(FILE* file) {
+    // from version_made_by to relative_offset there are 42 bytes
+    uint8_t bytes[42];
+    size_t c = 0;
+    sure_fread(bytes, sizeof(bytes), file);
+
+    CDH* cdh = (CDH*) sure_malloc(sizeof(CDH));
+    cdh->signature         = CDH_SIGNATURE;
+    cdh->version_made_by   = *(uint16_t *)(bytes+c); c += sizeof(uint16_t);
+    cdh->version_extract   = *(uint16_t *)(bytes+c); c += sizeof(uint16_t);
+    cdh->flags             = *(uint16_t *)(bytes+c); c += sizeof(uint16_t);
+    cdh->compression       = *(uint16_t *)(bytes+c); c += sizeof(uint16_t);
+    cdh->mod_time          = *(uint16_t *)(bytes+c); c += sizeof(uint16_t);
+    cdh->mod_date          = *(uint16_t *)(bytes+c); c += sizeof(uint16_t);
+    cdh->CRC               = *(uint32_t *)(bytes+c); c += sizeof(uint32_t);
+    cdh->compressed_size   = *(uint32_t *)(bytes+c); c += sizeof(uint32_t);
+    cdh->uncompressed_size = *(uint32_t *)(bytes+c); c += sizeof(uint32_t);
+    cdh->filename_len      = *(uint16_t *)(bytes+c); c += sizeof(uint16_t);
+    cdh->extra_field_len   = *(uint16_t *)(bytes+c); c += sizeof(uint16_t);
+    cdh->comment_len       = *(uint16_t *)(bytes+c); c += sizeof(uint16_t);
+    cdh->disk_num          = *(uint16_t *)(bytes+c); c += sizeof(uint16_t);
+    cdh->internal_attr     = *(uint16_t *)(bytes+c); c += sizeof(uint16_t);
+    cdh->external_attr     = *(uint32_t *)(bytes+c); c += sizeof(uint32_t);
+    cdh->relative_offset   = *(uint32_t *)(bytes+c); c += sizeof(uint32_t);
+}
+
 /*
 try to parse a block and add it to the current pk_zip structure.
 
@@ -274,7 +300,7 @@ int parse_block(FILE* file, pk_zip* zip) {
             return 0;
         break;
         case CDH_SIGNATURE:
-
+            parse_CDH(file);
             return 0;
 
         default:
