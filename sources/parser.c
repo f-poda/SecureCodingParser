@@ -40,28 +40,7 @@ void parse_LFH(FILE* file) {
 	lfh->compressed_data = (uint8_t*) sure_malloc(lfh->compressed_size);
 	sure_fread(lfh->compressed_data, lfh->compressed_size, file);
 
-
-	// temporary debug printf
-	printf("lfh->signature %08x\n",lfh->signature);
-	printf("lfh->version %08x\n",lfh->version);
-	printf("lfh->flags %08x\n",lfh->flags);
-	printf("lfh->compression %08x\n",lfh->compression);
-	printf("lfh->mod_time %08x\n",lfh->mod_time);
-	printf("lfh->mod_date %08x\n",lfh->mod_date);
-	printf("lfh->CRC %08x\n",lfh->CRC);
-	printf("lfh->compressed_size %08x\n",lfh->compressed_size);
-	printf("lfh->uncompressed_size %08x\n",lfh->uncompressed_size);
-	printf("lfh->filename_len %08x\n",lfh->filename_len);
-	printf("lfh->extra_field_len %08x\n",lfh->extra_field_len);
-
-	printf("lfh->filename:\n");
-	print_hex_dump(stdout, lfh->filename, lfh->filename_len);
-
-	printf("lfh->extra_field:\n");
-	print_hex_dump(stdout, lfh->extra_field, lfh->extra_field_len);
-
-	printf("lfh->compressed_data:\n");
-	print_hex_dump(stdout, lfh->compressed_data, lfh->compressed_size);
+	// TODO return something?
 }
 
 
