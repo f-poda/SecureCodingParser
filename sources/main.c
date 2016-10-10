@@ -55,7 +55,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
-#include <endian.h>
 #include <stdarg.h>
 
 #include "headers.h"
