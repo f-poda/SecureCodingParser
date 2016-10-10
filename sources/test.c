@@ -78,6 +78,8 @@ typedef struct {
     //variable length
     uint8_t* filename;
     uint8_t* extra_field;
+    uint8_t* compressed_data;
+
 } LFH;
 
 // node for doubly linked list of local file headers
@@ -102,6 +104,8 @@ typedef struct {
     CDR_end CDR_end;
 } pk_zip;
 
+////////////////////////////////////////////////////////////////////////////////
+// Error handling functions
 ////////////////////////////////////////////////////////////////////////////////
 
 void die_with_message(const char *format, ...)
@@ -134,6 +138,38 @@ void* sure_malloc(size_t size) {
     return ris;
 }
 
+////////////////////////////////////////////////////////////////////////////////
+// Printing functions
+////////////////////////////////////////////////////////////////////////////////
+
+void print_hex_dump(FILE* stream, uint8_t* buffer, size_t len) {
+    for (size_t i = 0; i < len; i += 16) {
+        fprintf(stream, "%p: ", buffer+i);
+        for (size_t j = 0; j < 16; ++j) {
+            if (i+j < len) {
+                fprintf(stream, "%02x ", buffer[i+j]);
+            } else {
+                fprintf(stream, "   ");
+            }
+
+            if (j == 7) {
+                fprintf(stream, " ");
+            }
+        }
+
+        fprintf(stream, " |");
+        for (size_t j = 0; j < 16 && i+j < len; ++j) {
+            if (buffer[i+j] < 32 || buffer[i+j]>126) {
+                fprintf(stream, ".");
+            } else {
+                fprintf(stream, "%c", buffer[i+j]);
+            }
+        }
+        fprintf(stream, "|\n");
+    }
+}
+
+
 void parse_LFH(FILE* file) {
     // from version to extra_field_len there are 26 bytes
     uint8_t bytes[26];
@@ -159,6 +195,14 @@ void parse_LFH(FILE* file) {
     lfh->extra_field = (uint8_t*) sure_malloc(lfh->extra_field_len);
     sure_fread(lfh->extra_field, lfh->extra_field_len, file);
 
+    // TODO check encryption or data descriptor flag are not set
+
+    // read compressed data
+    lfh->compressed_data = (uint8_t*) sure_malloc(lfh->compressed_size);
+    sure_fread(lfh->compressed_data, lfh->compressed_size, file);
+
+
+
     // temporary debug printf
     printf("lfh->signature %08x\n",lfh->signature);
     printf("lfh->version %08x\n",lfh->version);
@@ -172,15 +216,21 @@ void parse_LFH(FILE* file) {
     printf("lfh->filename_len %08x\n",lfh->filename_len);
     printf("lfh->extra_field_len %08x\n",lfh->extra_field_len);
 
-    printf("lfh->filename %*s\n",lfh->filename_len, lfh->filename);
-    // printf("lfh->extra_field %*s\n",lfh->extra_field_len, lfh->extra_field);
+    printf("lfh->filename:\n");
+    print_hex_dump(stdout, lfh->filename, lfh->filename_len);
+
+    printf("lfh->extra_field:\n");
+    print_hex_dump(stdout, lfh->extra_field, lfh->extra_field_len);
+
+    printf("lfh->compressed_data:\n");
+    print_hex_dump(stdout, lfh->compressed_data, lfh->compressed_size);
 }
 
 /*
 try to parse a block and add it to the current pk_zip structure.
 
 If EOF is encountered unexpectedly, exit with error.
-return 1 when EOF is encountered at the beginning, else return 1
+return 1 when EOF is encountered at the beginning, else return 0
 */
 int parse_block(FILE* file, pk_zip* zip) {
 
@@ -192,6 +242,7 @@ int parse_block(FILE* file, pk_zip* zip) {
     switch(signature) {
         case LFH_SIGNATURE:
             parse_LFH(file);
+            return 0;
         break;
 
         default:
