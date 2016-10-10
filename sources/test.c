@@ -126,13 +126,20 @@ void sure_fread(void* target, size_t size, FILE *stream) {
     }
 }
 
+void* sure_malloc(size_t size) {
+    void* ris = malloc(size);
+    if (ris == NULL && size > 0){
+        die_with_error("Cound not allocate buffer");
+    }
+    return ris;
+}
+
 void parse_LFH(FILE* file) {
     // from version to extra_field_len there are 26 bytes
     uint8_t bytes[26];
     sure_fread(bytes, sizeof(bytes), file);
 
-    LFH* lfh = (LFH*) malloc(sizeof(LFH));
-    // TODO check success
+    LFH* lfh = (LFH*) sure_malloc(sizeof(LFH));
 
     lfh->signature = LFH_SIGNATURE;
     lfh->version = *(uint16_t *)bytes;
@@ -146,12 +153,10 @@ void parse_LFH(FILE* file) {
     lfh->filename_len = *(uint16_t *)(bytes+22);
     lfh->extra_field_len = *(uint16_t *)(bytes+24);
 
-    lfh->filename = (uint8_t*) malloc(lfh->filename_len);
-    // TODO check success
+    lfh->filename = (uint8_t*) sure_malloc(lfh->filename_len);
     sure_fread(lfh->filename, lfh->filename_len, file);
 
-    lfh->extra_field = (uint8_t*) malloc(lfh->extra_field_len);
-    // TODO check success
+    lfh->extra_field = (uint8_t*) sure_malloc(lfh->extra_field_len);
     sure_fread(lfh->extra_field, lfh->extra_field_len, file);
 
     // temporary debug printf
@@ -198,8 +203,7 @@ int parse_block(FILE* file, pk_zip* zip) {
 
 void parse_file(char* path_to_file) {
     FILE*  file;
-    pk_zip* zip = (pk_zip*) malloc(sizeof(pk_zip));
-    // TODO check success
+    pk_zip* zip = (pk_zip*) sure_malloc(sizeof(pk_zip));
     // TODO initialize main structure
 
     file = fopen(path_to_file, "rb");
