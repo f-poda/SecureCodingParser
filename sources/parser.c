@@ -11,21 +11,22 @@
 void parse_LFH(FILE* file) {
 	// from version to extra_field_len there are 26 bytes
 	uint8_t bytes[26];
+	size_t c = 0;
 	sure_fread(bytes, sizeof(bytes), file);
 
 	LFH* lfh = (LFH*) sure_malloc(sizeof(LFH));
 
 	lfh->signature         = LFH_SIGNATURE;
-	lfh->version           = *(uint16_t *)bytes;
-	lfh->flags             = *(uint16_t *)(bytes+2);
-	lfh->compression       = *(uint16_t *)(bytes+4);
-	lfh->mod_time          = *(uint16_t *)(bytes+6);
-	lfh->mod_date          = *(uint16_t *)(bytes+8);
-	lfh->CRC               = *(uint32_t *)(bytes+10);
-	lfh->compressed_size   = *(uint32_t *)(bytes+14);
-	lfh->uncompressed_size = *(uint32_t *)(bytes+18);
-	lfh->filename_len      = *(uint16_t *)(bytes+22);
-	lfh->extra_field_len   = *(uint16_t *)(bytes+24);
+	lfh->version           = *(uint16_t *)(bytes+c); c += sizeof(uint16_t);
+	lfh->flags             = *(uint16_t *)(bytes+c); c += sizeof(uint16_t);
+	lfh->compression       = *(uint16_t *)(bytes+c); c += sizeof(uint16_t);
+	lfh->mod_time          = *(uint16_t *)(bytes+c); c += sizeof(uint16_t);
+	lfh->mod_date          = *(uint16_t *)(bytes+c); c += sizeof(uint16_t);
+	lfh->CRC               = *(uint32_t *)(bytes+c); c += sizeof(uint32_t);
+	lfh->compressed_size   = *(uint32_t *)(bytes+c); c += sizeof(uint32_t);
+	lfh->uncompressed_size = *(uint32_t *)(bytes+c); c += sizeof(uint32_t);
+	lfh->filename_len      = *(uint16_t *)(bytes+c); c += sizeof(uint16_t);
+	lfh->extra_field_len   = *(uint16_t *)(bytes+c); c += sizeof(uint16_t);
 
 	lfh->filename = (uint8_t*) sure_malloc(lfh->filename_len);
 	sure_fread(lfh->filename, lfh->filename_len, file);
@@ -71,6 +72,7 @@ void parse_CDH(FILE* file) {
 	sure_fread(bytes, sizeof(bytes), file);
 
 	CDH* cdh = (CDH*) sure_malloc(sizeof(CDH));
+
 	cdh->signature         = CDH_SIGNATURE;
 	cdh->version_made_by   = *(uint16_t *)(bytes+c); c += sizeof(uint16_t);
 	cdh->version_extract   = *(uint16_t *)(bytes+c); c += sizeof(uint16_t);
